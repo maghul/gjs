@@ -1077,12 +1077,15 @@ release:
      * all out args to JS
      */
     c_arg_pos = is_method ? 1 : 0;
+    js_arg_pos= 0;
+
     postinvoke_release_failed = FALSE;
     for (gi_arg_pos = 0; gi_arg_pos < gi_argc && c_arg_pos < processed_c_args; gi_arg_pos++, c_arg_pos++) {
         GIDirection direction;
         GIArgInfo arg_info;
         GITypeInfo arg_type_info;
         GjsParamType param_type;
+        gboolean arg_removed = FALSE;
 
         g_callable_info_load_arg( (GICallableInfo*) function->info, gi_arg_pos, &arg_info);
         direction = g_arg_info_get_direction(&arg_info);
@@ -1135,7 +1138,8 @@ release:
                                                      transfer,
                                                      &arg_type_info,
                                                      length,
-                                                     arg)) {
+                                                     arg,
+                                                     js_argv[js_arg_pos])) {
                     postinvoke_release_failed = TRUE;
                 }
             } else if (param_type == PARAM_NORMAL) {
@@ -1145,7 +1149,12 @@ release:
                                                    arg)) {
                     postinvoke_release_failed = TRUE;
                 }
+            } else if (param_type == PARAM_SKIPPED) {
+                arg_removed = TRUE;
             }
+
+            if (!failed && !arg_removed)
+                ++js_arg_pos;
         }
 
         /* Don't free out arguments if function threw an exception or we failed

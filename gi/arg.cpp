@@ -1071,6 +1071,25 @@ throw_invalid_argument(JSContext      *context,
 }
 
 static JSBool
+gjs_check_bytearray_argument_and_parameter(JSContext       *context,
+                                           jsval            value,
+                                           GITypeInfo      *type_info )
+{
+    // Check that both argument and parameter define a C-Type byte array
+    GITypeInfo *param_info;
+
+    param_info = g_type_info_get_param_type(type_info, 0);
+
+    if (g_type_info_get_tag(type_info)==GI_TYPE_TAG_ARRAY
+        && g_type_info_get_array_type(type_info)==GI_ARRAY_TYPE_C
+        && g_type_info_get_tag(param_info)==GI_TYPE_TAG_UINT8) {
+
+        return gjs_typecheck_bytearray(context, JSVAL_TO_OBJECT(value), FALSE);
+    }
+    return FALSE;
+}
+
+static JSBool
 gjs_array_to_explicit_array_internal(JSContext       *context,
                                      jsval            value,
                                      GITypeInfo      *type_info,
@@ -1104,6 +1123,16 @@ gjs_array_to_explicit_array_internal(JSContext       *context,
         if (!gjs_string_to_intarray(context, value, param_info,
                                     contents, length_p))
             goto out;
+    } else if (gjs_check_bytearray_argument_and_parameter(context, value, type_info)) {
+        JSObject *jsargobj= JSVAL_TO_OBJECT(value);
+        GByteArray* byteArray= gjs_byte_array_get_byte_array(context, jsargobj);
+
+        if (!byteArray ) {
+            goto out;
+        }
+
+        *contents= byteArray->data;
+        *length_p= byteArray->len;
     } else if (JS_HasPropertyById(context, JSVAL_TO_OBJECT(value), length_name, &found_length) &&
                found_length) {
         jsval length_value;
@@ -3353,7 +3382,8 @@ gjs_g_argument_release_in_array (JSContext  *context,
                                  GITransfer  transfer,
                                  GITypeInfo *type_info,
                                  guint       length,
-                                 GArgument  *arg)
+                                 GArgument  *arg,
+                                 jsval       value)
 {
     GITypeInfo *param_type;
     gpointer *array;
@@ -3367,6 +3397,10 @@ gjs_g_argument_release_in_array (JSContext  *context,
 
     gjs_debug_marshal(GJS_DEBUG_GFUNCTION,
                       "Releasing GArgument array in param");
+
+    if (gjs_check_bytearray_argument_and_parameter(context,value,type_info)) {
+        return JS_TRUE;
+    }
 
     array = (gpointer *) arg->v_pointer;
 

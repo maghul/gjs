@@ -90,7 +90,8 @@ JSBool gjs_g_argument_release_in_array (JSContext  *context,
                                         GITransfer  transfer,
                                         GITypeInfo *type_info,
                                         guint       length,
-                                        GArgument  *arg);
+                                        GArgument  *arg,
+                                        jsval       value);
 JSBool gjs_g_argument_release_in_arg (JSContext  *context,
                                       GITransfer  transfer,
                                       GITypeInfo *type_info,
